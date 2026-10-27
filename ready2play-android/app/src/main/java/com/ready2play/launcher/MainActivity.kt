@@ -15,7 +15,6 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Base64
 import android.view.View
-import android.view.Window
 import android.view.WindowManager
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -30,55 +29,61 @@ import java.io.ByteArrayOutputStream
 
 class MainActivity : Activity() {
 
-    private lateinit var webView: WebView
-    private lateinit var prefs: SharedPreferences
+    private var webView: WebView? = null
+    private var prefs: SharedPreferences? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // 1. Set Fullscreen Flags
         try {
-            // Fullscreen & No Title
-            requestWindowFeature(Window.FEATURE_NO_TITLE)
             window.setFlags(
                 WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 WindowManager.LayoutParams.FLAG_FULLSCREEN
             )
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
-            prefs = getSharedPreferences("ready2play_prefs", Context.MODE_PRIVATE)
+        // 2. Inisialisasi SharedPreferences
+        prefs = getSharedPreferences("ready2play_prefs", Context.MODE_PRIVATE)
 
-            webView = WebView(this)
-            setContentView(webView)
+        // 3. Buat dan pasang WebView
+        try {
+            val wv = WebView(this)
+            webView = wv
+            setContentView(wv)
 
-            hideSystemUI()
+            val s: WebSettings = wv.settings
+            s.javaScriptEnabled = true
+            s.domStorageEnabled = true
+            s.allowFileAccess = true
+            s.allowContentAccess = true
+            s.databaseEnabled = true
+            s.useWideViewPort = true
+            s.loadWithOverviewMode = true
+            s.mediaPlaybackRequiresUserGesture = false
 
-            val settings: WebSettings = webView.settings
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            settings.allowFileAccess = true
-            settings.allowContentAccess = true
-            settings.databaseEnabled = true
-            settings.useWideViewPort = true
-            settings.loadWithOverviewMode = true
-            settings.mediaPlaybackRequiresUserGesture = false
-
-            webView.webChromeClient = WebChromeClient()
-            webView.webViewClient = object : WebViewClient() {
+            wv.webChromeClient = WebChromeClient()
+            wv.webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     hideSystemUI()
                 }
             }
 
-            // Daftarkan Javascript Interface Bridge
-            webView.addJavascriptInterface(AndroidBridge(this), "Android")
+            // Daftarkan Javascript Bridge
+            wv.addJavascriptInterface(AndroidBridge(this), "Android")
 
-            // Muat aset tampilan web
-            webView.loadUrl("file:///android_asset/www/index.html")
+            // Muat tampilan UI konsol
+            wv.loadUrl("file:///android_asset/www/index.html")
         } catch (e: Exception) {
             e.printStackTrace()
         }
+
+        hideSystemUI()
     }
 
     override fun onResume() {
@@ -138,7 +143,10 @@ class MainActivity : Activity() {
                 val appsList = JSONArray()
                 val resolveList = pm.queryIntentActivities(intent, 0)
 
+                // Batasi agar tidak membebani memori (maks 50 aplikasi)
+                var count = 0
                 for (resolveInfo in resolveList) {
+                    if (count >= 50) break
                     val pkgName = resolveInfo.activityInfo.packageName
                     if (pkgName == context.packageName) continue
 
@@ -154,6 +162,7 @@ class MainActivity : Activity() {
                         false
                     }
 
+                    // Ambil icon ringan (maksimal 72x72) agar tidak OOM
                     val iconBase64 = try {
                         val drawable = resolveInfo.loadIcon(pm)
                         drawableToBase64(drawable)
@@ -171,6 +180,7 @@ class MainActivity : Activity() {
                         put("cover", if (iconBase64.isNotEmpty()) "data:image/png;base64,$iconBase64" else "")
                     }
                     appsList.put(appObj)
+                    count++
                 }
                 appsList.toString()
             } catch (e: Exception) {
@@ -200,7 +210,7 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun getCustomPorts(): String {
             return try {
-                prefs.getString("custom_ports", "[]") ?: "[]"
+                prefs?.getString("custom_ports", "[]") ?: "[]"
             } catch (e: Exception) {
                 "[]"
             }
@@ -209,7 +219,7 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun saveCustomPorts(json: String) {
             try {
-                prefs.edit().putString("custom_ports", json).apply()
+                prefs?.edit()?.putString("custom_ports", json)?.apply()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -218,7 +228,7 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun saveInstalledApps(json: String) {
             try {
-                prefs.edit().putString("installed_apps_pref", json).apply()
+                prefs?.edit()?.putString("installed_apps_pref", json)?.apply()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -227,7 +237,7 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun getLastPlayed(): String {
             return try {
-                prefs.getString("last_played", "{}") ?: "{}"
+                prefs?.getString("last_played", "{}") ?: "{}"
             } catch (e: Exception) {
                 "{}"
             }
@@ -238,7 +248,7 @@ class MainActivity : Activity() {
             try {
                 val current = JSONObject(getLastPlayed())
                 current.put(id, timestamp)
-                prefs.edit().putString("last_played", current.toString()).apply()
+                prefs?.edit()?.putString("last_played", current.toString())?.apply()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -253,19 +263,14 @@ class MainActivity : Activity() {
 
         private fun drawableToBase64(drawable: Drawable): String {
             return try {
-                val bitmap = if (drawable is BitmapDrawable && drawable.bitmap != null) {
-                    drawable.bitmap
-                } else {
-                    val w = if (drawable.intrinsicWidth in 1..256) drawable.intrinsicWidth else 96
-                    val h = if (drawable.intrinsicHeight in 1..256) drawable.intrinsicHeight else 96
-                    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-                    val canvas = Canvas(bmp)
-                    drawable.setBounds(0, 0, canvas.width, canvas.height)
-                    drawable.draw(canvas)
-                    bmp
-                }
+                val size = 72
+                val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bmp)
+                drawable.setBounds(0, 0, size, size)
+                drawable.draw(canvas)
+
                 val stream = ByteArrayOutputStream()
-                bitmap.compress(Bitmap.CompressFormat.PNG, 85, stream)
+                bmp.compress(Bitmap.CompressFormat.PNG, 80, stream)
                 val byteArray = stream.toByteArray()
                 Base64.encodeToString(byteArray, Base64.NO_WRAP)
             } catch (e: Exception) {
@@ -273,4 +278,4 @@ class MainActivity : Activity() {
             }
         }
     }
-}    
+}
