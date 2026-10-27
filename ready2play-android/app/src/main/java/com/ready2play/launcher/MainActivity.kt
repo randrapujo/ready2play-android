@@ -9,6 +9,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
@@ -23,6 +24,8 @@ import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.ScrollView
+import android.widget.TextView
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -36,22 +39,28 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. Set Fullscreen Flags
-        try {
-            window.setFlags(
-                WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                WindowManager.LayoutParams.FLAG_FULLSCREEN
-            )
-            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        } catch (e: Exception) {
-            e.printStackTrace()
+        // Tangkap uncaught crash agar layar tidak langsung force close
+        Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
+            runOnUiThread {
+                showErrorScreen("Uncaught Error", throwable)
+            }
         }
 
-        // 2. Inisialisasi SharedPreferences
-        prefs = getSharedPreferences("ready2play_prefs", Context.MODE_PRIVATE)
-
-        // 3. Buat dan pasang WebView
         try {
+            // Fullscreen & Keep Screen On
+            try {
+                window.setFlags(
+                    WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                    WindowManager.LayoutParams.FLAG_FULLSCREEN
+                )
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } catch (e: Throwable) {
+                e.printStackTrace()
+            }
+
+            prefs = getSharedPreferences("ready2play_prefs", Context.MODE_PRIVATE)
+
+            // Buat WebView
             val wv = WebView(this)
             webView = wv
             setContentView(wv)
@@ -74,16 +83,28 @@ class MainActivity : Activity() {
                 }
             }
 
-            // Daftarkan Javascript Bridge
+            // Pasang Javascript Bridge
             wv.addJavascriptInterface(AndroidBridge(this), "Android")
 
-            // Muat tampilan UI konsol
+            // Muat HTML
             wv.loadUrl("file:///android_asset/www/index.html")
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
 
-        hideSystemUI()
+            hideSystemUI()
+        } catch (t: Throwable) {
+            showErrorScreen("Startup Error", t)
+        }
+    }
+
+    private fun showErrorScreen(title: String, t: Throwable) {
+        val sv = ScrollView(this)
+        val tv = TextView(this)
+        tv.setBackgroundColor(Color.parseColor("#0b0e17"))
+        tv.setTextColor(Color.parseColor("#ff7a6b"))
+        tv.setPadding(40, 40, 40, 40)
+        tv.textSize = 14f
+        tv.text = "=== Ready2Play Launcher Error Log ===\n\n[$title]\n${t.message}\n\nStacktrace:\n${android.util.Log.getStackTraceString(t)}"
+        sv.addView(tv)
+        setContentView(sv)
     }
 
     override fun onResume() {
@@ -117,7 +138,7 @@ class MainActivity : Activity() {
                     or View.SYSTEM_UI_FLAG_FULLSCREEN
                 )
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
         }
     }
@@ -127,7 +148,6 @@ class MainActivity : Activity() {
         moveTaskToBack(true)
     }
 
-    // Bridge Penghubung JavaScript <-> Native Android
     inner class AndroidBridge(private val context: Context) {
 
         @JavascriptInterface
@@ -143,11 +163,10 @@ class MainActivity : Activity() {
                 val appsList = JSONArray()
                 val resolveList = pm.queryIntentActivities(intent, 0)
 
-                // Batasi agar tidak membebani memori (maks 50 aplikasi)
                 var count = 0
                 for (resolveInfo in resolveList) {
                     if (count >= 50) break
-                    val pkgName = resolveInfo.activityInfo.packageName
+                    val pkgName = resolveInfo.activityInfo?.packageName ?: continue
                     if (pkgName == context.packageName) continue
 
                     val appName = resolveInfo.loadLabel(pm).toString()
@@ -158,15 +177,14 @@ class MainActivity : Activity() {
                         } else {
                             false
                         }
-                    } catch (e: Exception) {
+                    } catch (e: Throwable) {
                         false
                     }
 
-                    // Ambil icon ringan (maksimal 72x72) agar tidak OOM
                     val iconBase64 = try {
                         val drawable = resolveInfo.loadIcon(pm)
                         drawableToBase64(drawable)
-                    } catch (e: Exception) {
+                    } catch (e: Throwable) {
                         ""
                     }
 
@@ -183,7 +201,7 @@ class MainActivity : Activity() {
                     count++
                 }
                 appsList.toString()
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 e.printStackTrace()
                 "[]"
             }
@@ -201,7 +219,7 @@ class MainActivity : Activity() {
                 } else {
                     false
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 e.printStackTrace()
                 false
             }
@@ -211,7 +229,7 @@ class MainActivity : Activity() {
         fun getCustomPorts(): String {
             return try {
                 prefs?.getString("custom_ports", "[]") ?: "[]"
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 "[]"
             }
         }
@@ -220,7 +238,7 @@ class MainActivity : Activity() {
         fun saveCustomPorts(json: String) {
             try {
                 prefs?.edit()?.putString("custom_ports", json)?.apply()
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 e.printStackTrace()
             }
         }
@@ -229,7 +247,7 @@ class MainActivity : Activity() {
         fun saveInstalledApps(json: String) {
             try {
                 prefs?.edit()?.putString("installed_apps_pref", json)?.apply()
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 e.printStackTrace()
             }
         }
@@ -238,7 +256,7 @@ class MainActivity : Activity() {
         fun getLastPlayed(): String {
             return try {
                 prefs?.getString("last_played", "{}") ?: "{}"
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 "{}"
             }
         }
@@ -249,7 +267,7 @@ class MainActivity : Activity() {
                 val current = JSONObject(getLastPlayed())
                 current.put(id, timestamp)
                 prefs?.edit()?.putString("last_played", current.toString())?.apply()
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 e.printStackTrace()
             }
         }
@@ -273,7 +291,7 @@ class MainActivity : Activity() {
                 bmp.compress(Bitmap.CompressFormat.PNG, 80, stream)
                 val byteArray = stream.toByteArray()
                 Base64.encodeToString(byteArray, Base64.NO_WRAP)
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 ""
             }
         }
