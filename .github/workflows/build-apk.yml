@@ -30,7 +30,9 @@ jobs:
           PROJECT_DIR=$(find . -name "settings.gradle" -exec dirname {} \; | head -n 1)
           echo "Project directory: $PROJECT_DIR"
           cd "$PROJECT_DIR"
-          gradle assembleDebug --stacktrace --no-daemon
+          echo "android.useAndroidX=true" >> gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
+          gradle assembleDebug --no-daemon -Pandroid.useAndroidX=true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
