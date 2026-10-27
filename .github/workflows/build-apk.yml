@@ -27,17 +27,13 @@ jobs:
 
       - name: Build Android APK
         run: |
-          # Temukan letak file settings.gradle di repo
           PROJECT_DIR=$(find . -name "settings.gradle" -exec dirname {} \; | head -n 1)
-          echo "Ditemukan project di: $PROJECT_DIR"
+          echo "Project directory: $PROJECT_DIR"
           cd "$PROJECT_DIR"
           gradle assembleDebug --stacktrace --no-daemon
 
-      - name: Upload APK Ready to Play
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Ready2Play-Launcher-v1.0.apk
-          path: |
-            **/app/build/outputs/apk/debug/*.apk
-          path: |
-            **/app/build/outputs/apk/debug/*.apk
+          path: "**/app/build/outputs/apk/debug/*.apk"
