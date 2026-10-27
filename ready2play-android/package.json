@@ -1,0 +1,11 @@
+{
+  "name": "ready2play-launcher-android",
+  "version": "1.0.0",
+  "description": "Ready2Play Launcher Android Edition (PS5-style Console UI for Android)",
+  "main": "preview.js",
+  "scripts": {
+    "start": "node preview.js"
+  },
+  "keywords": ["launcher", "android", "gamepad", "ps5-ui"],
+  "license": "MIT"
+}

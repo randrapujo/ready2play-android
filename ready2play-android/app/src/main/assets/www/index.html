@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Ready2Play Launcher (Android)</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Background key art game terpilih -->
+  <div id="backdrop"></div>
+  <div id="backdrop-shade"></div>
+
+  <!-- Bar atas -->
+  <header id="topbar">
+    <div class="brand">
+      <img src="logo.png" class="brand-logo" alt="R2P" />
+      <span class="brand-name">READY<span class="brand-2">2</span>PLAY</span>
+      <span class="brand-sub">ANDROID</span>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="btn-sound" title="Efek Suara Konsol (Aktif)">🔊</button>
+      <button class="icon-btn" id="btn-search" title="Cari (Segitiga / F3)">&#128269;</button>
+      <button class="icon-btn" id="btn-settings" title="Pengaturan (OPTIONS / F2)">&#9881;</button>
+      <div class="avatar" title="Pemain">P</div>
+      <div class="clock" id="clock">--.--</div>
+    </div>
+  </header>
+
+  <!-- Deretan tile game -->
+  <main>
+    <div id="tile-row" tabindex="0"></div>
+
+    <!-- Panel info game terpilih -->
+    <section id="info-panel">
+      <h1 id="game-title">Memuat perpustakaan...</h1>
+      <p id="game-meta"></p>
+      <div id="game-badges"></div>
+      <div class="action-buttons">
+        <button id="btn-play">&#9654;&nbsp; Mainkan</button>
+      </div>
+      <p id="game-last"></p>
+      <p id="status-line"></p>
+    </section>
+  </main>
+
+  <!-- Bar petunjuk tombol (Touch & Gamepad friendly) -->
+  <footer id="hintbar">
+    <span class="hint-item" id="hint-pad-x"><b class="glyph">&#10005;</b> Main</span>
+    <span class="hint-item" id="hint-pad-o"><b class="glyph">&#9711;</b> Batal</span>
+    <span class="hint-item" id="hint-pad-tri"><b class="glyph">&#9651;</b> Cari</span>
+    <span class="hint-right" id="hint-touch-tip">Geser / Swipe layar untuk memilih game</span>
+  </footer>
+
+  <!-- Overlay pencarian -->
+  <div id="search-overlay" class="overlay hidden">
+    <div class="sheet">
+      <h2>Cari Game</h2>
+      <input id="search-input" type="text" placeholder="Ketik nama game..." autocomplete="off" />
+      <p class="sheet-note">Ketik untuk menyaring game. Kosongkan untuk menampilkan semua game.</p>
+      <div class="row">
+        <button type="button" id="btn-close-search" class="primary">Selesai</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlay pengaturan -->
+  <div id="settings-overlay" class="overlay hidden">
+    <div class="sheet wide">
+      <h2>Pengaturan Launcher</h2>
+      
+      <div class="tab-header">
+        <button type="button" class="tab-btn active" data-tab="tab-custom">Game Fan Port / Custom</button>
+        <button type="button" class="tab-btn" data-tab="tab-apps">Aplikasi Android</button>
+      </div>
+
+      <!-- Tab 1: Custom / Fan Port -->
+      <div id="tab-custom" class="tab-content active">
+        <h3>Daftar Game Fan Port & Emulator</h3>
+        <div id="port-list"></div>
+
+        <h3>Tambah Game Baru (Fan Port / Emulator / ROM)</h3>
+        <form id="add-form">
+          <input id="f-name" type="text" placeholder="Nama game (mis. Hollow Knight Fan Port)" required />
+          <input id="f-genre" type="text" placeholder="Genre / Kategori (mis. Metroidvania)" />
+          <input id="f-pkg" type="text" placeholder="Package name / URI (mis. com.jack.hk atau org.ppsspp.ppsspp)" required />
+          <input id="f-cover" type="text" placeholder="URL Gambar Cover (opsional)" />
+          <input id="f-backdrop" type="text" placeholder="URL Gambar Background (opsional)" />
+          <div class="row">
+            <button type="submit" class="primary">Simpan Game</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tab 2: Android Installed Apps -->
+      <div id="tab-apps" class="tab-content">
+        <h3>Aplikasi / Game Terpasang di Android</h3>
+        <p class="sheet-note">Pilih game mana saja yang ingin ditampilkan di barisan launcher depan:</p>
+        <div id="installed-apps-list">
+          <!-- Diisi otomatis dari AndroidBridge -->
+        </div>
+      </div>
+
+      <div class="row settings-footer">
+        <button type="button" id="btn-close-settings" class="primary">Tutup</button>
+        <button type="button" id="btn-quit" class="danger">Keluar ke Android Home</button>
+      </div>
+    </div>
+  </div>
+
+<script src="app.js"></script>
+</body>
+</html>
